@@ -1,0 +1,8 @@
+{
+  "action_manifest_version": 0,
+  "controller_type": "frame_hmd",
+  "name": "VR Cube defaults (headset)",
+  "bindings": {
+    "/actions/cube": { "sources": [], "poses": [], "haptics": [], "chords": [], "skeleton": [] }
+  }
+}

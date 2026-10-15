@@ -1,0 +1,7 @@
+# build outputs
+/vr-cube
+/vr-cube-overlay
+*.o
+
+# debug frame dumps
+*.pam

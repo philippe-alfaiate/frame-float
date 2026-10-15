@@ -1,0 +1,46 @@
+{
+  "default_bindings": [
+    {
+      "controller_type": "frame_controller",
+      "binding_url": "bindings_frame_controller.json"
+    },
+    {
+      "controller_type": "frame_hmd",
+      "binding_url": "bindings_frame_hmd.json"
+    }
+  ],
+  "actions": [
+    {
+      "name": "/actions/cube/in/color",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/cube/in/grab",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/cube/in/stick",
+      "type": "vector2"
+    },
+    {
+      "name": "/actions/cube/in/hand",
+      "type": "pose"
+    }
+  ],
+  "action_sets": [
+    {
+      "name": "/actions/cube",
+      "usage": "single"
+    }
+  ],
+  "localization": [
+    {
+      "language_tag": "en_US",
+      "/actions/cube": "VR Cube",
+      "/actions/cube/in/color": "Change color",
+      "/actions/cube/in/grab": "Grab cube",
+      "/actions/cube/in/stick": "Push / pull grabbed cube",
+      "/actions/cube/in/hand": "Hand pose"
+    }
+  ]
+}
