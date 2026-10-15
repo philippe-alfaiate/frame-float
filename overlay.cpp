@@ -377,7 +377,7 @@ int main(int argc, char **argv) {
     printf("%s is now %s\n", object, color == 0 && mesh.has_own_colors ? "original" : PALETTE_NAMES[color]);
     fflush(stdout);
   };
-  printf("VR Cube overlay running. Point the laser at the cube: click to change color, "
+  printf("VR Cube overlay running. Point the laser at the object: click to change color, "
          "hold to grab and move it, stick up/down to push/pull. Ctrl+C to quit.\n");
   fflush(stdout);
 
@@ -472,7 +472,7 @@ int main(int argc, char **argv) {
         grab_glide = 0;
         grab_extra = 0;
         pulse = 0.6f;
-        printf("Grabbed the cube\n");
+        printf("Grabbed the %s\n", argc == 2 ? "model" : "cube");
         fflush(stdout);
       }
     }
@@ -584,7 +584,7 @@ int main(int argc, char **argv) {
         // and release in the same batch.
         double held = (now_s - ev.eventAgeSeconds) - laser_press_time;
         bool was_grab = grab_device != vr::k_unTrackedDeviceIndexInvalid;
-        if (was_grab) printf("Released the cube\n");
+        if (was_grab) printf("Released the %s\n", argc == 2 ? "model" : "cube");
         else if (held < HOLD_TO_GRAB_S) next_color();  // quick click
         fflush(stdout);
         laser_pressed = false;
