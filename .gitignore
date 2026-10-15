@@ -5,3 +5,7 @@
 
 # debug frame dumps
 *.pam
+
+# sample models (downloaded by models/fetch.sh, not redistributed)
+/models/*
+!/models/fetch.sh

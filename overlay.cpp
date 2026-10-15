@@ -20,6 +20,7 @@
 #include <GL/gl.h>
 #include <GL/glext.h>
 
+#include "model.h"
 #include "third_party/openvr/openvr.h"
 
 static volatile sig_atomic_t quit_requested = 0;
@@ -30,7 +31,7 @@ static const int EYE_PX = 512;
 static const float OVERLAY_WIDTH_M = 0.50f;  // physical width of the overlay (the "window")
 static const float VIEW_DIST_M = 0.80f;      // how far in front of you it appears
 static const float HALF_IPD_M = 0.032f;
-static const float CUBE_SIZE_M = 0.17f;
+static const float MODEL_RADIUS_M = 0.15f;  // every model is scaled to fit this sphere
 
 static const float PALETTE[][3] = {
     {0.95f, 0.25f, 0.25f}, {1.00f, 0.60f, 0.15f}, {0.98f, 0.90f, 0.20f},
@@ -96,14 +97,20 @@ static mat4 window_view_proj(float ex, float ey, float ez, bool flip_y) {
 static const char *VS =
     "#version 330 core\n"
     "layout(location=0) in vec3 aPos; layout(location=1) in vec3 aNrm;\n"
-    "uniform mat4 uMVP; uniform mat4 uModel; out vec3 vN;\n"
-    "void main(){ vN = mat3(uModel)*aNrm; gl_Position = uMVP*vec4(aPos,1.0); }\n";
+    "layout(location=2) in vec3 aCol; layout(location=3) in vec2 aUV;\n"
+    "uniform mat4 uMVP; uniform mat4 uModel; out vec3 vN; out vec3 vCol; out vec2 vUV;\n"
+    "void main(){ vN = mat3(uModel)*aNrm; vCol = aCol; vUV = aUV;\n"
+    "  gl_Position = uMVP*vec4(aPos,1.0); }\n";
+// Two-sided lighting: imported meshes don't always wind their triangles the
+// same way.
 static const char *FS =
     "#version 330 core\n"
-    "in vec3 vN; uniform vec3 uColor; out vec4 o;\n"
+    "in vec3 vN; in vec3 vCol; in vec2 vUV; out vec4 o;\n"
+    "uniform vec3 uTint; uniform sampler2D uTex; uniform float uUseTex;\n"
     "void main(){ vec3 n = normalize(vN);\n"
-    "  float d = max(dot(n, normalize(vec3(0.4,0.9,0.6))), 0.0);\n"
-    "  o = vec4(uColor*(0.35+0.65*d), 1.0); }\n";
+    "  float d = abs(dot(n, normalize(vec3(0.4,0.9,0.6))));\n"
+    "  vec3 base = vCol * mix(vec3(1.0), texture(uTex, vUV).rgb, uUseTex);\n"
+    "  o = vec4(base*uTint*(0.35+0.65*d), 1.0); }\n";
 
 static GLuint compile(GLenum type, const char *src) {
   GLuint s = glCreateShader(type);
@@ -120,33 +127,30 @@ static GLuint compile(GLenum type, const char *src) {
   return s;
 }
 
-static GLuint make_cube_vao() {
-  static const float n[6][3] = {{1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1}};
-  float verts[36 * 6];
-  int k = 0;
-  for (int f = 0; f < 6; f++) {
-    const float *N = n[f];
-    float U[3] = {0, 1, 0};
-    if (fabsf(N[1]) > 0.5f) { U[0] = 1; U[1] = 0; }
-    float V[3] = {N[1] * U[2] - N[2] * U[1], N[2] * U[0] - N[0] * U[2], N[0] * U[1] - N[1] * U[0]};
-    static const float corners[6][2] = {{-1,-1},{1,-1},{1,1},{-1,-1},{1,1},{-1,1}};
-    for (int i = 0; i < 6; i++, k++) {
-      for (int a = 0; a < 3; a++) {
-        verts[k * 6 + a] = 0.5f * (N[a] + U[a] * corners[i][0] + V[a] * corners[i][1]);
-        verts[k * 6 + 3 + a] = N[a];
-      }
-    }
-  }
+// Upload a mesh (and its textures) to the GPU.
+static GLuint make_mesh_vao(const Mesh &mesh, std::vector<GLuint> &textures) {
   GLuint vao, vbo;
   glGenVertexArrays(1, &vao);
   glBindVertexArray(vao);
   glGenBuffers(1, &vbo);
   glBindBuffer(GL_ARRAY_BUFFER, vbo);
-  glBufferData(GL_ARRAY_BUFFER, sizeof verts, verts, GL_STATIC_DRAW);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 24, (void *)0);
-  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 24, (void *)12);
-  glEnableVertexAttribArray(0);
-  glEnableVertexAttribArray(1);
+  glBufferData(GL_ARRAY_BUFFER, mesh.verts.size() * sizeof(float), mesh.verts.data(), GL_STATIC_DRAW);
+  const GLsizei stride = Mesh::FLOATS_PER_VERTEX * sizeof(float);
+  const int sizes[4] = {3, 3, 3, 2};
+  for (int a = 0, offset = 0; a < 4; offset += sizes[a], a++) {
+    glVertexAttribPointer(a, sizes[a], GL_FLOAT, GL_FALSE, stride, (void *)(offset * sizeof(float)));
+    glEnableVertexAttribArray(a);
+  }
+  for (const Mesh::Texture &t : mesh.textures) {
+    GLuint tex;
+    glGenTextures(1, &tex);
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, t.width, t.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, t.rgba.data());
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    textures.push_back(tex);
+  }
   return vao;
 }
 
@@ -226,7 +230,26 @@ static void exe_dir(char *out, size_t size) {
   if (char *slash = strrchr(out, '/')) *slash = 0;
 }
 
-int main() {
+int main(int argc, char **argv) {
+  if (argc > 2 || (argc == 2 && argv[1][0] == '-')) {
+    fprintf(stderr, "usage: %s [model.stl|.obj|.ply|.gltf|.glb]\n", argv[0]);
+    return 2;
+  }
+  // The model to show: a file from the command line, or the cube.
+  Mesh mesh;
+  if (argc == 2) {
+    std::string load_err;
+    if (!load_model(argv[1], mesh, load_err)) {
+      fprintf(stderr, "could not load %s: %s\n", argv[1], load_err.c_str());
+      return 1;
+    }
+    printf("Loaded %s: %zu triangles\n", argv[1], mesh.vertex_count() / 3);
+  } else {
+    mesh = make_cube_mesh();
+  }
+  fit_mesh(mesh, MODEL_RADIUS_M);
+  const char *object = argc == 2 ? "Model" : "Cube";
+
   signal(SIGINT, on_signal);
   signal(SIGTERM, on_signal);
 
@@ -265,8 +288,14 @@ int main() {
   glLinkProgram(prog);
   GLint uMVP = glGetUniformLocation(prog, "uMVP");
   GLint uModel = glGetUniformLocation(prog, "uModel");
-  GLint uColor = glGetUniformLocation(prog, "uColor");
-  GLuint vao = make_cube_vao();
+  GLint uTint = glGetUniformLocation(prog, "uTint");
+  GLint uUseTex = glGetUniformLocation(prog, "uUseTex");
+  glUseProgram(prog);
+  glUniform1i(glGetUniformLocation(prog, "uTex"), 0);
+  std::vector<GLuint> mesh_textures;
+  GLuint vao = make_mesh_vao(mesh, mesh_textures);
+  mesh.verts = std::vector<float>();  // on the GPU now
+  for (Mesh::Texture &t : mesh.textures) t.rgba = std::vector<unsigned char>();
 
   const int W = EYE_PX * 2, H = EYE_PX;
   // Two color textures used in turn, so we never draw into the one SteamVR
@@ -340,7 +369,7 @@ int main() {
   auto next_color = [&] {
     color = (color + 1) % NCOLORS;
     pulse = 1;
-    printf("Cube is now %s\n", PALETTE_NAMES[color]);
+    printf("%s is now %s\n", object, color == 0 && mesh.has_own_colors ? "original" : PALETTE_NAMES[color]);
     fflush(stdout);
   };
   printf("VR Cube overlay running. Point the laser at the cube: click to change color, "
@@ -594,13 +623,17 @@ int main() {
     if (!manual_turn) cube_yaw += dt * 0.6f;  // auto-spin
     pulse = pulse > 0 ? pulse - dt * 4 : 0;
     bool highlight = hover || grab_hand >= 0 || grab_device != vr::k_unTrackedDeviceIndexInvalid;
-    float s = CUBE_SIZE_M * (1 + 0.15f * pulse + (highlight ? 0.06f : 0));
+    float s = 1 + 0.15f * pulse + (highlight ? 0.06f : 0);
     // The panel turns to face you, so subtract its turn: the cube keeps its
     // own direction in the room as you walk around it.
     float panel_yaw = atan2f(overlay_xf.m[0][2], overlay_xf.m[2][2]);
     mat4 model = mmul(rot_y(cube_yaw - panel_yaw), scale(s));  // top stays level
+    // Models with their own colors start in their original look (white tint),
+    // then cycle through the palette as tints.
+    static const float WHITE[3] = {1, 1, 1};
+    const float *tint = (mesh.has_own_colors && color == 0) ? WHITE : PALETTE[color];
     float rgb[3];
-    for (int i = 0; i < 3; i++) rgb[i] = fminf(1, PALETTE[color][i] * (highlight ? 1.15f : 1));
+    for (int i = 0; i < 3; i++) rgb[i] = fminf(1, tint[i] * (highlight ? 1.15f : 1));
 
     int next = 1 - cur;
     glBindFramebuffer(GL_FRAMEBUFFER, fbo[next]);
@@ -611,13 +644,18 @@ int main() {
     glUseProgram(prog);
     glBindVertexArray(vao);
     glUniformMatrix4fv(uModel, 1, GL_FALSE, model.m);
-    glUniform3fv(uColor, 1, rgb);
+    glUniform3fv(uTint, 1, rgb);
     for (int eye = 0; eye < 2; eye++) {  // left half = left eye
       glViewport(eye * EYE_PX, 0, EYE_PX, EYE_PX);
       const float *el = eye_local[eye];
       mat4 mvp = mmul(window_view_proj(el[0], el[1], el[2], use_raw), model);
       glUniformMatrix4fv(uMVP, 1, GL_FALSE, mvp.m);
-      glDrawArrays(GL_TRIANGLES, 0, 36);
+      for (const Mesh::Draw &d : mesh.draws) {
+        bool textured = d.texture >= 0 && d.texture < (int)mesh_textures.size();
+        glBindTexture(GL_TEXTURE_2D, textured ? mesh_textures[d.texture] : 0);
+        glUniform1f(uUseTex, textured ? 1.0f : 0.0f);
+        glDrawArrays(GL_TRIANGLES, (GLint)d.first, (GLsizei)d.count);
+      }
     }
     glFinish();  // SteamVR reads the texture from another process
     cur = next;

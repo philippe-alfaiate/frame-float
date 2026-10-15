@@ -1,6 +1,6 @@
 # VR Cube
 
-A tiny mixed-reality toy for the **Steam Frame** (SteamOS, ARM64). A cube floats in front of you over passthrough and SteamVR's desktop mode. Only the cube is drawn; everything around it stays see-through, and your desktop stays usable.
+A tiny mixed-reality toy for the **Steam Frame** (SteamOS, ARM64). A cube, or any 3D model you load (STL, OBJ, PLY, glTF), floats in front of you over passthrough and SteamVR's desktop mode. Only the object is drawn; everything around it stays see-through, and your desktop stays usable.
 
 It's also a working example of a SteamVR **overlay** that:
 
@@ -8,9 +8,42 @@ It's also a working example of a SteamVR **overlay** that:
 - runs **alongside desktop mode** without replacing it,
 - gets **controller input while the SteamVR dashboard owns the controllers**, through laser mouse and scroll events.
 
+## Loading a model
+
+```sh
+./vr-cube-overlay                       # the cube
+./vr-cube-overlay models/3DBenchy.stl   # any .stl .obj .ply .gltf .glb
+```
+
+Supported formats:
+
+| Format | What's read |
+|---|---|
+| **STL** | Binary and ASCII. Converted from Z-up (the usual 3D-printing convention) to Y-up. |
+| **OBJ** | Positions, UVs, normals, polygons (triangulated), and optional `v x y z r g b` vertex colors. Smooth normals are computed when the file has none. |
+| **PLY** | ASCII and binary (little and big endian): positions, optional normals and vertex colors, faces. |
+| **glTF 2.0** | `.gltf` (external or embedded buffers) and `.glb`. Node transforms, normals, vertex colors, base color factor and base color texture. |
+
+Whatever its original size, the model is centered and scaled to the same size as the cube. Models that bring their own colors (textures, vertex or material colors) start in their original look; clicking cycles through color tints.
+
+To get one free sample of each format, run:
+
+```sh
+models/fetch.sh
+```
+
+| File | Source | License |
+|---|---|---|
+| `3DBenchy.stl` | [3DBenchy](https://www.3dbenchy.com) by Creative Tools | CC BY-ND 4.0 |
+| `spot.obj` | [Spot](https://www.cs.cmu.edu/~kmcrane/Projects/ModelRepository/) by Keenan Crane | CC0 |
+| `bunny.ply` | [Stanford Bunny](https://graphics.stanford.edu/data/3Dscanrep/), Stanford Computer Graphics Laboratory | free use with credit |
+| `Avocado.glb` | [Avocado](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Avocado), Khronos glTF Sample Assets | CC0 |
+
+The models are downloaded, not stored in this repo.
+
 ## Controls
 
-Point the SteamVR laser at the cube:
+Point the SteamVR laser at the object:
 
 | Input | Action |
 |---|---|
@@ -44,9 +77,13 @@ Requirements:
 | File | What it is |
 |---|---|
 | `overlay.cpp` | **The main program**: the SteamVR overlay version described above. |
+| `model.cpp`, `model.h` | Model loaders (STL, OBJ, PLY, glTF/GLB) that produce one GPU-ready triangle list. |
+| `models/fetch.sh` | Downloads the sample models. |
 | `main.c` | An earlier version as a full OpenXR scene app. It takes over the headset, so no passthrough and no desktop. It's kept as a minimal OpenXR + EGL example. |
 | `actions.json`, `bindings_*.json` | SteamVR Input manifest. It's only used outside desktop mode (L1/R1 color, L2/R2 grab, stick push/pull). |
 | `third_party/openvr/` | `openvr.h` from [ValveSoftware/openvr](https://github.com/ValveSoftware/openvr) v2.15.6, BSD-3-Clause. |
+| `third_party/cgltf/` | [cgltf](https://github.com/jkuhlmann/cgltf) v1.15 glTF parser, MIT. |
+| `third_party/stb/` | [stb_image](https://github.com/nothings/stb) v2.30 for glTF textures (PNG and JPEG), public domain. |
 
 ## How it works
 
@@ -80,7 +117,7 @@ A few details that keep this reliable:
 
 - **Hold detection** uses each event's `eventAgeSeconds`, not frame counts. When desktop mode is busy (its keyboard is open, for example), the press and release can arrive together.
 - **Keyboard:** desktop mode moves its on-screen keyboard to whatever overlay the laser focuses. The app closes any keyboard opened for the cube (`HideKeyboard`); yours comes back when you return to your window.
-- **Click hit test:** clicks only count on the cube, not the transparent area around it. The app reads back the alpha under the laser in both eye images.
+- **Click hit test:** clicks only count on the object, not the transparent area around it. The app reads back the alpha under the laser in both eye images.
 
 ## Debugging
 
@@ -104,11 +141,14 @@ SteamVR's own logs are in `~/.local/share/Steam/logs/` (`vrserver.txt`, `vrclien
 
 The goal is to go beyond the cube: **load any 3D object** and place it in your space the same way, over passthrough and desktop mode.
 
-- Load models from files: **STL** first, then other common formats such as OBJ, glTF/GLB and PLY.
-- Pick the file to open from the command line or a desktop file picker.
-- Scale the model automatically so it fits in front of you, then resize it with the controls.
-- Shading that suits imported meshes (normals, and colors or textures when the file has them).
+- [x] Load models from files: STL, OBJ, PLY and glTF/GLB.
+- [x] Scale the model automatically so it fits in front of you.
+- [x] Shading that suits imported meshes, with their colors and textures.
+- [x] Open a model from the command line, or with "Open With" in the file manager.
+- [ ] Pick a file from inside VR (file picker).
+- [ ] Resize the model with the controls.
+- [ ] More formats (FBX, 3MF) and glTF extras (normal maps, PBR lighting, animation).
 
 ## License
 
-MIT, see [LICENSE](LICENSE). `third_party/openvr/openvr.h` is BSD-3-Clause (Valve Corporation), see [third_party/openvr/LICENSE](third_party/openvr/LICENSE).
+MIT, see [LICENSE](LICENSE). Bundled third-party code keeps its own license: OpenVR header (BSD-3-Clause, Valve), cgltf (MIT, Johannes Kuhlmann) and stb_image (public domain or MIT, Sean Barrett). Each license is in its `third_party/` folder. The sample models are not included; see their licenses above.
