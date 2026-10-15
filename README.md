@@ -100,6 +100,15 @@ SteamVR's own logs are in `~/.local/share/Steam/logs/` (`vrserver.txt`, `vrclien
 - **Viewing angle:** the 3D effect is a window: from far off to the side or behind, the panel's edges clip the cube.
 - **Platform:** it has only been tested on a Steam Frame (SteamVR 2.18, Adreno 750, Mesa Zink).
 
+## Roadmap
+
+The goal is to go beyond the cube: **load any 3D object** and place it in your space the same way, over passthrough and desktop mode.
+
+- Load models from files: **STL** first, then other common formats such as OBJ, glTF/GLB and PLY.
+- Pick the file to open from the command line or a desktop file picker.
+- Scale the model automatically so it fits in front of you, then resize it with the controls.
+- Shading that suits imported meshes (normals, and colors or textures when the file has them).
+
 ## License
 
 MIT, see [LICENSE](LICENSE). `third_party/openvr/openvr.h` is BSD-3-Clause (Valve Corporation), see [third_party/openvr/LICENSE](third_party/openvr/LICENSE).
