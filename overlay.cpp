@@ -320,7 +320,12 @@ int main(int argc, char **argv) {
   unsigned char *pixels = (unsigned char *)malloc((size_t)W * H * 4);
 
   vr::VROverlayHandle_t overlay;
-  vr::EVROverlayError oerr = vr::VROverlay()->CreateOverlay("vrcube.overlay", "VR Cube", &overlay);
+  // A key per process, so several models can be open at once.
+  char overlay_key[64], overlay_name[256];
+  snprintf(overlay_key, sizeof overlay_key, "vrcube.overlay.%d", (int)getpid());
+  const char *base = argc == 2 ? strrchr(argv[1], '/') : NULL;
+  snprintf(overlay_name, sizeof overlay_name, "VR Cube: %s", argc == 2 ? (base ? base + 1 : argv[1]) : "cube");
+  vr::EVROverlayError oerr = vr::VROverlay()->CreateOverlay(overlay_key, overlay_name, &overlay);
   if (oerr != vr::VROverlayError_None) {
     fprintf(stderr, "could not create overlay: %s\n", vr::VROverlay()->GetOverlayErrorNameFromEnum(oerr));
     return 1;
