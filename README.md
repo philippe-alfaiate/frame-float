@@ -52,6 +52,7 @@ Point the SteamVR laser at the object:
 | Stick up / down | Push the cube away / pull it closer along the laser |
 | Stick left / right while grabbing | Past about half-way, takes over from the auto-spin and turns the cube (it stays level) |
 | Let go | Drop it; the auto-spin resumes |
+| Pull it all the way in while grabbing, and keep pulling | When the object touches your controller, a ring around it fills (about 1.5 s); when the ring is full, the object closes. Stop pulling and the ring drains. |
 
 When the cube first appears, it's 80 cm in front of where you're looking, slightly below eye level. It always faces the same way in the room, so you can walk around it.
 

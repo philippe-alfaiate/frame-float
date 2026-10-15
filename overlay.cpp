@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <algorithm>
 #include <unistd.h>
 
 #define GL_GLEXT_PROTOTYPES
@@ -32,6 +33,11 @@ static const float OVERLAY_WIDTH_M = 0.50f;  // physical width of the overlay (t
 static const float VIEW_DIST_M = 0.80f;      // how far in front of you it appears
 static const float HALF_IPD_M = 0.032f;
 static const float MODEL_RADIUS_M = 0.15f;  // every model is scaled to fit this sphere
+// Closest the object comes to the controller: its surface touching it.
+static const float CLOSEST_M = MODEL_RADIUS_M + 0.02f;
+// Keep pulling an object that's already touching the controller this long and
+// it closes; a ring around it fills up meanwhile.
+static const float CLOSE_HOLD_S = 1.5f;
 
 static const float PALETTE[][3] = {
     {0.95f, 0.25f, 0.25f}, {1.00f, 0.60f, 0.15f}, {0.98f, 0.90f, 0.20f},
@@ -106,11 +112,11 @@ static const char *VS =
 static const char *FS =
     "#version 330 core\n"
     "in vec3 vN; in vec3 vCol; in vec2 vUV; out vec4 o;\n"
-    "uniform vec3 uTint; uniform sampler2D uTex; uniform float uUseTex;\n"
+    "uniform vec3 uTint; uniform sampler2D uTex; uniform float uUseTex; uniform float uUnlit;\n"
     "void main(){ vec3 n = normalize(vN);\n"
     "  float d = abs(dot(n, normalize(vec3(0.4,0.9,0.6))));\n"
     "  vec3 base = vCol * mix(vec3(1.0), texture(uTex, vUV).rgb, uUseTex);\n"
-    "  o = vec4(base*uTint*(0.35+0.65*d), 1.0); }\n";
+    "  o = vec4(base*uTint*mix(0.35+0.65*d, 1.0, uUnlit), 1.0); }\n";
 
 static GLuint compile(GLenum type, const char *src) {
   GLuint s = glCreateShader(type);
@@ -127,6 +133,41 @@ static GLuint compile(GLenum type, const char *src) {
   return s;
 }
 
+// Attribute layout of Mesh::verts, for the currently bound VAO/VBO.
+static void set_vertex_layout() {
+  const GLsizei stride = Mesh::FLOATS_PER_VERTEX * sizeof(float);
+  const int sizes[4] = {3, 3, 3, 2};
+  for (int a = 0, offset = 0; a < 4; offset += sizes[a], a++) {
+    glVertexAttribPointer(a, sizes[a], GL_FLOAT, GL_FALSE, stride, (void *)(offset * sizeof(float)));
+    glEnableVertexAttribArray(a);
+  }
+}
+
+// The "pull in to close" ring, in overlay space (facing you) around the
+// object: a dim full track plus an arc filled clockwise from the top.
+static void build_close_ring(float progress, std::vector<float> &out) {
+  out.clear();
+  const int SEG = 96;
+  const float R_IN = MODEL_RADIUS_M * 1.10f, R_OUT = MODEL_RADIUS_M * 1.20f;
+  auto quad_strip = [&](float from, float to, float r, float g, float b, float z) {
+    int n = std::max(1, (int)(SEG * (to - from)));
+    for (int i = 0; i < n; i++) {
+      float a0 = 1.5707963f - 6.2831853f * (from + (to - from) * i / n);
+      float a1 = 1.5707963f - 6.2831853f * (from + (to - from) * (i + 1) / n);
+      float pts[4][2] = {{cosf(a0) * R_IN, sinf(a0) * R_IN}, {cosf(a0) * R_OUT, sinf(a0) * R_OUT},
+                         {cosf(a1) * R_OUT, sinf(a1) * R_OUT}, {cosf(a1) * R_IN, sinf(a1) * R_IN}};
+      const int order[6] = {0, 1, 2, 0, 2, 3};
+      for (int k : order) {
+        float v[Mesh::FLOATS_PER_VERTEX] = {pts[k][0], pts[k][1], z, 0, 0, 1, r, g, b, 0, 0};
+        out.insert(out.end(), v, v + Mesh::FLOATS_PER_VERTEX);
+      }
+    }
+  };
+  quad_strip(0, 1, 0.30f, 0.30f, 0.32f, 0);  // track
+  float t = fminf(1, progress);
+  quad_strip(0, t, 1.0f, 1.0f - 0.7f * t, 1.0f - 0.7f * t, 0.001f);  // white -> red as it fills
+}
+
 // Upload a mesh (and its textures) to the GPU.
 static GLuint make_mesh_vao(const Mesh &mesh, std::vector<GLuint> &textures) {
   GLuint vao, vbo;
@@ -135,12 +176,7 @@ static GLuint make_mesh_vao(const Mesh &mesh, std::vector<GLuint> &textures) {
   glGenBuffers(1, &vbo);
   glBindBuffer(GL_ARRAY_BUFFER, vbo);
   glBufferData(GL_ARRAY_BUFFER, mesh.verts.size() * sizeof(float), mesh.verts.data(), GL_STATIC_DRAW);
-  const GLsizei stride = Mesh::FLOATS_PER_VERTEX * sizeof(float);
-  const int sizes[4] = {3, 3, 3, 2};
-  for (int a = 0, offset = 0; a < 4; offset += sizes[a], a++) {
-    glVertexAttribPointer(a, sizes[a], GL_FLOAT, GL_FALSE, stride, (void *)(offset * sizeof(float)));
-    glEnableVertexAttribArray(a);
-  }
+  set_vertex_layout();
   for (const Mesh::Texture &t : mesh.textures) {
     GLuint tex;
     glGenTextures(1, &tex);
@@ -290,10 +326,18 @@ int main(int argc, char **argv) {
   GLint uModel = glGetUniformLocation(prog, "uModel");
   GLint uTint = glGetUniformLocation(prog, "uTint");
   GLint uUseTex = glGetUniformLocation(prog, "uUseTex");
+  GLint uUnlit = glGetUniformLocation(prog, "uUnlit");
   glUseProgram(prog);
   glUniform1i(glGetUniformLocation(prog, "uTex"), 0);
   std::vector<GLuint> mesh_textures;
   GLuint vao = make_mesh_vao(mesh, mesh_textures);
+  GLuint ring_vao, ring_vbo;
+  glGenVertexArrays(1, &ring_vao);
+  glBindVertexArray(ring_vao);
+  glGenBuffers(1, &ring_vbo);
+  glBindBuffer(GL_ARRAY_BUFFER, ring_vbo);
+  set_vertex_layout();
+  std::vector<float> ring_verts;
   mesh.verts = std::vector<float>();  // on the GPU now
   for (Mesh::Texture &t : mesh.textures) t.rgba = std::vector<unsigned char>();
 
@@ -346,6 +390,9 @@ int main(int argc, char **argv) {
   bool hover = false;
   float cube_yaw = 0;  // cube's turn around the vertical axis, in room space
   bool manual_turn = false;  // stick took over turning during this grab
+  float grab_dist = 1e9f;          // current hand-to-object distance while grabbed
+  double last_close_pull = -1;     // last time the stick pulled while already touching
+  float close_progress = 0;        // 0..1, closes the object at 1
   float pulse = 0;
   int grab_hand = -1;        // which hand is holding the cube, -1 = none
   vec3 grab_offset_local;    // cube position in the grabbing hand's frame
@@ -449,7 +496,7 @@ int main(int argc, char **argv) {
         // Keep the grab offset, then slide along the hand->cube line.
         vec3 arm = rotate(hand, grab_offset_local);
         float dist = length(arm);
-        float wanted = fmaxf(0.10f, dist + grab_extra);
+        float wanted = fmaxf(CLOSEST_M, dist + grab_extra);
         grab_extra = wanted - dist;  // don't build up push past the minimum
         if (dist > 1e-3f) arm = arm * (wanted / dist);
         cube_pos = position_of(hand) + arm;
@@ -489,8 +536,9 @@ int main(int argc, char **argv) {
         if (got_len > 1e-4f) local = local * (want_len / got_len);
         vec3 arm = rotate(hand, local);
         float dist = length(arm);
-        float wanted = fmaxf(0.10f, dist + grab_extra);
+        float wanted = fmaxf(CLOSEST_M, dist + grab_extra);
         grab_extra = wanted - dist;
+        grab_dist = wanted;
         if (dist > 1e-3f) arm = arm * (wanted / dist);
         cube_pos = position_of(hand) + arm;
       }
@@ -556,12 +604,13 @@ int main(int argc, char **argv) {
         float push = y * METERS_PER_SCROLL;
         if (grab_device != vr::k_unTrackedDeviceIndexInvalid) {
           grab_extra += push;  // applied in the grab update next frame
+          if (push < 0 && grab_dist <= CLOSEST_M + 0.005f) last_close_pull = now_s;
         } else {
           vr::HmdMatrix34_t hand;
           if (device_pose(ev.trackedDeviceIndex, &hand)) {
             vec3 arm = cube_pos - position_of(hand);
             float dist = length(arm);
-            float wanted = fmaxf(0.10f, dist + push);
+            float wanted = fmaxf(CLOSEST_M, dist + push);
             if (dist > 1e-3f) cube_pos = position_of(hand) + arm * (wanted / dist);
           }
         }
@@ -626,6 +675,16 @@ int main(int argc, char **argv) {
     }
 
     if (!manual_turn) cube_yaw += dt * 0.6f;  // auto-spin
+
+    // Pull in to close: keep pulling while the object touches the controller.
+    bool pulling_in = grab_device != vr::k_unTrackedDeviceIndexInvalid && now_s - last_close_pull < 0.15;
+    if (pulling_in) close_progress += dt / CLOSE_HOLD_S;
+    else close_progress = fmaxf(0, close_progress - dt * 1.5f);  // drains if you stop
+    if (close_progress >= 1 && !quit_requested) {
+      printf("Closed: pulled into the controller\n");
+      fflush(stdout);
+      quit_requested = 1;
+    }
     pulse = pulse > 0 ? pulse - dt * 4 : 0;
     bool highlight = hover || grab_hand >= 0 || grab_device != vr::k_unTrackedDeviceIndexInvalid;
     float s = 1 + 0.15f * pulse + (highlight ? 0.06f : 0);
@@ -660,6 +719,29 @@ int main(int argc, char **argv) {
         glBindTexture(GL_TEXTURE_2D, textured ? mesh_textures[d.texture] : 0);
         glUniform1f(uUseTex, textured ? 1.0f : 0.0f);
         glDrawArrays(GL_TRIANGLES, (GLint)d.first, (GLsizei)d.count);
+      }
+      if (close_progress > 0) {  // the ring sits in front, unlit, facing you
+        if (eye == 0) {
+          build_close_ring(close_progress, ring_verts);
+          glBindBuffer(GL_ARRAY_BUFFER, ring_vbo);
+          glBufferData(GL_ARRAY_BUFFER, ring_verts.size() * sizeof(float), ring_verts.data(), GL_STREAM_DRAW);
+        }
+        static const float IDENTITY[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+        static const float WHITE_TINT[3] = {1, 1, 1};
+        mat4 ring_mvp = window_view_proj(el[0], el[1], el[2], use_raw);
+        glDisable(GL_DEPTH_TEST);
+        glBindVertexArray(ring_vao);
+        glUniformMatrix4fv(uMVP, 1, GL_FALSE, ring_mvp.m);
+        glUniformMatrix4fv(uModel, 1, GL_FALSE, IDENTITY);
+        glUniform3fv(uTint, 1, WHITE_TINT);
+        glUniform1f(uUseTex, 0);
+        glUniform1f(uUnlit, 1);
+        glDrawArrays(GL_TRIANGLES, 0, (GLsizei)(ring_verts.size() / Mesh::FLOATS_PER_VERTEX));
+        glUniform1f(uUnlit, 0);
+        glUniformMatrix4fv(uModel, 1, GL_FALSE, model.m);
+        glUniform3fv(uTint, 1, rgb);
+        glBindVertexArray(vao);
+        glEnable(GL_DEPTH_TEST);
       }
     }
     glFinish();  // SteamVR reads the texture from another process
