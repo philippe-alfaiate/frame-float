@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Frame Float
+Comment=Float a 3D model (or a cube) over desktop mode and passthrough
+Exec=frame-float %f
+Icon=applications-games
+Terminal=false
+Categories=Game;Graphics;Viewer;
+MimeType=model/stl;model/x.stl-binary;model/x.stl-ascii;model/obj;model/gltf-binary;model/gltf+json;text/x-ply;application/x-ply;
