@@ -1,6 +1,6 @@
 # Maintainer: Philippe Alfaiate <39280579+philippe-alfaiate@users.noreply.github.com>
-pkgname=frame-float-git
-pkgver=r0
+pkgname=frame-float
+pkgver=0.1.0
 pkgrel=1
 pkgdesc="Float a 3D model (or a cube) over SteamVR desktop mode and passthrough on the Steam Frame"
 arch=('aarch64')
@@ -8,24 +8,17 @@ url="https://github.com/philippe-alfaiate/frame-float"
 license=('MIT' 'BSD-3-Clause')
 # libopenvr_api.so comes from SteamVR in /opt/steamvr, which Steam installs (not pacman).
 depends=('glibc' 'gcc-libs' 'libglvnd')
-makedepends=('git')
-provides=('frame-float')
-conflicts=('frame-float')
-source=("frame-float::git+https://github.com/philippe-alfaiate/frame-float.git")
-sha256sums=('SKIP')
-
-pkgver() {
-  cd frame-float
-  printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
-}
+options=('!debug')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('63768de89ace87be493eaeadb4df63ff261ca91bb22529f0280f131f3c3068c5')
 
 build() {
-  cd frame-float
+  cd "$pkgname-$pkgver"
   make frame-float-overlay
 }
 
 package() {
-  cd frame-float
+  cd "$pkgname-$pkgver"
   make DESTDIR="$pkgdir" PREFIX=/usr install
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
   for lib in openvr cgltf stb; do

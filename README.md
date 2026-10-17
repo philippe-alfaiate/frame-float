@@ -81,13 +81,18 @@ Requirements:
 
 ## Installing as an Arch package
 
-`packaging/arch/PKGBUILD` builds a `frame-float-git` package from this GitHub repo. It installs the overlay as `frame-float` with a desktop launcher, so you can open models from your file manager.
+There are two packages. Both install the overlay as `frame-float` with a desktop launcher, so you can open models from your file manager.
+
+| Package | Builds |
+|---|---|
+| `packaging/arch/frame-float/` | The latest release (`v0.1.0`). A prebuilt copy is attached to the [release](https://github.com/philippe-alfaiate/frame-float/releases/latest). |
+| `packaging/arch/frame-float-git/` | The newest code on `main`. |
 
 ```sh
-cd packaging/arch
+cd packaging/arch/frame-float     # or frame-float-git
 makepkg -f
 sudo steamos-readonly disable      # SteamOS only: the system is read-only
-sudo pacman -U frame-float-git-*.pkg.tar.zst
+sudo pacman -U frame-float-*.pkg.tar.zst
 sudo steamos-readonly enable
 frame-float model.stl              # or launch "Frame Float" from the menu
 ```
@@ -99,9 +104,9 @@ What the package installs:
 | `/usr/bin/frame-float` | Link to the overlay |
 | `/usr/lib/frame-float/` | The overlay, `actions.json` and the bindings |
 | `/usr/share/applications/frame-float.desktop` | Launcher, opens STL, OBJ, PLY and glTF files |
-| `/usr/share/licenses/frame-float-git/` | MIT license and the bundled third-party licenses |
+| `/usr/share/licenses/frame-float/` | MIT license and the bundled third-party licenses |
 
-SteamVR isn't a pacman package, so it isn't listed as a dependency; it must already be in `/opt/steamvr`. On SteamOS, a system update replaces the read-only system and removes the package, so install it again afterwards. To uninstall: `sudo pacman -R frame-float-git`.
+SteamVR isn't a pacman package, so it isn't listed as a dependency; it must already be in `/opt/steamvr`. On SteamOS, a system update replaces the read-only system and removes the package, so install it again afterwards. To uninstall: `sudo pacman -R frame-float` (or `frame-float-git`).
 
 To install from a local checkout without the package, `make install` takes the usual `PREFIX` and `DESTDIR`.
 
@@ -113,7 +118,7 @@ To install from a local checkout without the package, `make install` takes the u
 | `model.cpp`, `model.h` | Model loaders (STL, OBJ, PLY, glTF/GLB) that produce one GPU-ready triangle list. |
 | `models/fetch.sh` | Downloads the sample models. |
 | `main.c` | An earlier version as a full OpenXR scene app. It takes over the headset, so no passthrough and no desktop. It's kept as a minimal OpenXR + EGL example. |
-| `packaging/arch/PKGBUILD` | Arch package build (see [Installing as an Arch package](#installing-as-an-arch-package)). |
+| `packaging/arch/` | Arch package builds, release and `-git` (see [Installing as an Arch package](#installing-as-an-arch-package)). |
 | `frame-float.desktop` | Desktop launcher installed by `make install`. |
 | `actions.json`, `bindings_*.json` | SteamVR Input manifest. It's only used outside desktop mode (L1/R1 color, L2/R2 grab, stick push/pull). |
 | `third_party/openvr/` | `openvr.h` from [ValveSoftware/openvr](https://github.com/ValveSoftware/openvr) v2.15.6, BSD-3-Clause. |
