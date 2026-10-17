@@ -1,4 +1,4 @@
-// Model loaders for vr-cube. STL, OBJ and PLY are parsed here; glTF/GLB goes
+// Model loaders for frame-float. STL, OBJ and PLY are parsed here; glTF/GLB goes
 // through cgltf, and its textures through stb_image.
 #include "model.h"
 

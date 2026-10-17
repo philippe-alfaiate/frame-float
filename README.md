@@ -1,4 +1,4 @@
-# VR Cube
+# Frame Float
 
 A tiny mixed-reality toy for the **Steam Frame** (SteamOS, ARM64). A cube, or any 3D model you load (STL, OBJ, PLY, glTF), floats in front of you over passthrough and SteamVR's desktop mode. Only the object is drawn; everything around it stays see-through, and your desktop stays usable.
 
@@ -11,8 +11,8 @@ It's also a working example of a SteamVR **overlay** that:
 ## Loading a model
 
 ```sh
-./vr-cube-overlay                       # the cube
-./vr-cube-overlay models/3DBenchy.stl   # any .stl .obj .ply .gltf .glb
+./frame-float-overlay                       # the cube
+./frame-float-overlay models/3DBenchy.stl   # any .stl .obj .ply .gltf .glb
 ```
 
 Supported formats:
@@ -62,13 +62,13 @@ On the Steam Frame itself (SteamOS has the toolchain and headers):
 
 ```sh
 make            # builds both programs
-./vr-cube-overlay
+./frame-float-overlay
 ```
 
 Requirements:
 
 - SteamVR installed at `/opt/steamvr` (the Steam Frame default). The Makefile links against `libopenvr_api.so` and `libopenxr_loader.so` from `/opt/steamvr/bin/linuxarm64`.
-- Mesa EGL and OpenGL 3.3, plus the OpenXR headers (for the optional `vr-cube` scene app).
+- Mesa EGL and OpenGL 3.3, plus the OpenXR headers (for the optional `frame-float` scene app).
 - A C/C++ compiler and `make`.
 
 `actions.json` and the `bindings_*.json` files must sit next to the binary.
@@ -126,11 +126,11 @@ Environment variables:
 
 | Variable | Effect |
 |---|---|
-| `VRCUBE_DEBUG=1` | Log input, focus and keyboard events to stdout |
-| `VRCUBE_DUMP=frame.pam` | Save the first rendered frame (RGBA, PAM format) |
-| `VRCUBE_RAW=1` | Use `SetOverlayRaw` uploads instead of GL textures |
+| `FRAMEFLOAT_DEBUG=1` | Log input, focus and keyboard events to stdout |
+| `FRAMEFLOAT_DUMP=frame.pam` | Save the first rendered frame (RGBA, PAM format) |
+| `FRAMEFLOAT_RAW=1` | Use `SetOverlayRaw` uploads instead of GL textures |
 
-SteamVR's own logs are in `~/.local/share/Steam/logs/` (`vrserver.txt`, `vrclient_vr-cube-overlay.txt`).
+SteamVR's own logs are in `~/.local/share/Steam/logs/` (`vrserver.txt`, `vrclient_frame-float-overlay.txt`).
 
 ## Known limitations
 

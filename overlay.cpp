@@ -1,4 +1,4 @@
-// vr-cube-overlay: the cube as a SteamVR overlay instead of a VR scene app.
+// frame-float-overlay: the cube as a SteamVR overlay instead of a VR scene app.
 // Overlays float over whatever is running (desktop mode, passthrough), so
 // only the cube appears. The background is transparent and each eye gets its
 // own rendering (side-by-side stereo), so the cube looks 3D. Point the
@@ -343,8 +343,8 @@ int main(int argc, char **argv) {
 
   const int W = EYE_PX * 2, H = EYE_PX;
   // Two color textures used in turn, so we never draw into the one SteamVR
-  // is currently showing. VRCUBE_RAW=1 uses SetOverlayRaw uploads instead.
-  bool use_raw = getenv("VRCUBE_RAW") != NULL;
+  // is currently showing. FRAMEFLOAT_RAW=1 uses SetOverlayRaw uploads instead.
+  bool use_raw = getenv("FRAMEFLOAT_RAW") != NULL;
   GLuint fbo[2], color_tex[2], depth_rb;
   glGenRenderbuffers(1, &depth_rb);
   glBindRenderbuffer(GL_RENDERBUFFER, depth_rb);
@@ -366,9 +366,9 @@ int main(int argc, char **argv) {
   vr::VROverlayHandle_t overlay;
   // A key per process, so several models can be open at once.
   char overlay_key[64], overlay_name[256];
-  snprintf(overlay_key, sizeof overlay_key, "vrcube.overlay.%d", (int)getpid());
+  snprintf(overlay_key, sizeof overlay_key, "framefloat.overlay.%d", (int)getpid());
   const char *base = argc == 2 ? strrchr(argv[1], '/') : NULL;
-  snprintf(overlay_name, sizeof overlay_name, "VR Cube: %s", argc == 2 ? (base ? base + 1 : argv[1]) : "cube");
+  snprintf(overlay_name, sizeof overlay_name, "Frame Float: %s", argc == 2 ? (base ? base + 1 : argv[1]) : "cube");
   vr::EVROverlayError oerr = vr::VROverlay()->CreateOverlay(overlay_key, overlay_name, &overlay);
   if (oerr != vr::VROverlayError_None) {
     fprintf(stderr, "could not create overlay: %s\n", vr::VROverlay()->GetOverlayErrorNameFromEnum(oerr));
@@ -424,7 +424,7 @@ int main(int argc, char **argv) {
     printf("%s is now %s\n", object, color == 0 && mesh.has_own_colors ? "original" : PALETTE_NAMES[color]);
     fflush(stdout);
   };
-  printf("VR Cube overlay running. Point the laser at the object: click to change color, "
+  printf("Frame Float overlay running. Point the laser at the object: click to change color, "
          "hold to grab and move it, stick up/down to push/pull. Ctrl+C to quit.\n");
   fflush(stdout);
 
@@ -468,7 +468,7 @@ int main(int argc, char **argv) {
       bool pose_ok = pose.bActive && pose.pose.bPoseIsValid;
       const vr::HmdMatrix34_t &hand = pose.pose.mDeviceToAbsoluteTracking;
 
-      if (getenv("VRCUBE_DEBUG")) {
+      if (getenv("FRAMEFLOAT_DEBUG")) {
         static int last_dbg[2] = {-1, -1};
         int dbg = color_btn.bActive | color_btn.bState << 1 | grab_btn.bActive << 2 |
                   grab_btn.bState << 3 | pose_ok << 4;
@@ -568,7 +568,7 @@ int main(int argc, char **argv) {
         quit_requested = 1;
       }
     while (vr::VROverlay()->PollNextOverlayEvent(overlay, &ev, sizeof ev)) {
-      if (getenv("VRCUBE_DEBUG")) {
+      if (getenv("FRAMEFLOAT_DEBUG")) {
         if (ev.eventType == vr::VREvent_MouseButtonDown || ev.eventType == vr::VREvent_MouseButtonUp)
           printf("[debug] %.3f mouse %s button=%u device=%u\n", now.tv_sec % 1000 + now.tv_nsec * 1e-9,
                  ev.eventType == vr::VREvent_MouseButtonDown ? "down" : "up", ev.data.mouse.button,
@@ -622,7 +622,7 @@ int main(int argc, char **argv) {
       // return to your window.
       if (ev.eventType == vr::VREvent_KeyboardOpened_Global) {
         bool ours = ev.data.keyboard.overlayHandle == overlay;
-        if (getenv("VRCUBE_DEBUG"))
+        if (getenv("FRAMEFLOAT_DEBUG"))
           printf("[debug] keyboard opened for %s overlay\n", ours ? "our" : "another");
         if (ours) vr::VROverlay()->HideKeyboard();
         continue;
@@ -749,7 +749,7 @@ int main(int argc, char **argv) {
 
     bool dump = false;
     static bool dumped = false;
-    if (!dumped && getenv("VRCUBE_DUMP")) dump = dumped = true;
+    if (!dumped && getenv("FRAMEFLOAT_DUMP")) dump = dumped = true;
     if (use_raw || dump) glReadPixels(0, 0, W, H, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 
     if (placed && use_raw) {
@@ -764,9 +764,9 @@ int main(int argc, char **argv) {
       }
     }
 
-    // VRCUBE_DUMP=file.pam saves one frame (with alpha) for debugging.
+    // FRAMEFLOAT_DUMP=file.pam saves one frame (with alpha) for debugging.
     if (dump) {
-      if (FILE *f = fopen(getenv("VRCUBE_DUMP"), "wb")) {
+      if (FILE *f = fopen(getenv("FRAMEFLOAT_DUMP"), "wb")) {
         fprintf(f, "P7\nWIDTH %d\nHEIGHT %d\nDEPTH 4\nMAXVAL 255\nTUPLTYPE RGB_ALPHA\nENDHDR\n", W, H);
         fwrite(pixels, 1, (size_t)W * H * 4, f);
         fclose(f);

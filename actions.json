@@ -36,7 +36,7 @@
   "localization": [
     {
       "language_tag": "en_US",
-      "/actions/cube": "VR Cube",
+      "/actions/cube": "Frame Float",
       "/actions/cube/in/color": "Change color",
       "/actions/cube/in/grab": "Grab cube",
       "/actions/cube/in/stick": "Push / pull grabbed cube",

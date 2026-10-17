@@ -1,4 +1,4 @@
-// vr-cube: a cube floats in front of you in VR; point at it and pull the
+// frame-float: a cube floats in front of you in VR; point at it and pull the
 // trigger (or pinch) to change its color. Runs as a normal desktop process
 // through SteamVR's OpenXR runtime, so the desktop stays usable.
 #define _GNU_SOURCE
@@ -257,7 +257,7 @@ int main(void) {
   free(props);
 
   XrInstanceCreateInfo ici = {XR_TYPE_INSTANCE_CREATE_INFO};
-  strcpy(ici.applicationInfo.applicationName, "VR Cube");
+  strcpy(ici.applicationInfo.applicationName, "Frame Float");
   ici.applicationInfo.apiVersion = XR_MAKE_VERSION(1, 0, 0);
   ici.enabledExtensionCount = nenabled;
   ici.enabledExtensionNames = enabled;

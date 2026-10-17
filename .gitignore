@@ -1,6 +1,6 @@
 # build outputs
-/vr-cube
-/vr-cube-overlay
+/frame-float
+/frame-float-overlay
 *.o
 
 # debug frame dumps

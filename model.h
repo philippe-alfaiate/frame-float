@@ -1,4 +1,4 @@
-// 3D model loading for vr-cube: STL, OBJ, PLY and glTF/GLB, all turned into
+// 3D model loading for frame-float: STL, OBJ, PLY and glTF/GLB, all turned into
 // one flat triangle list ready for OpenGL.
 #pragma once
 #include <string>
