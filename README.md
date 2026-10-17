@@ -45,18 +45,22 @@ The models are downloaded, not stored in this repo.
 
 ## Controls
 
-Point the SteamVR laser at the object:
+Point the controller's laser at the object. In desktop mode, SteamVR turns every button into a laser click, so R1 and R2 do the same thing:
 
 | Input | Action |
 |---|---|
-| Quick click (trigger or bumper) | Change color (8-color cycle) |
-| Hold the click (≥ 0.3 s) | Grab: the cube glides onto your laser and follows your hand |
-| Stick up / down | Push the cube away / pull it closer along the laser |
-| Stick left / right while grabbing | Past about half-way, takes over from the auto-spin and turns the cube (it stays level) |
-| Let go | Drop it; the auto-spin resumes |
-| Pull it all the way in while grabbing, and keep pulling | When the object touches your controller, a ring around it fills (about 1.5 s); when the ring is full, the object closes. Stop pulling and the ring drains. |
+| Click **R1** or **R2** | Change color (8-color cycle) |
+| Hold **R1** or **R2** (≥ 0.3 s) | Grab: the object glides onto your laser and follows your hand |
+| **Stick** up / down | Push the object away / pull it closer along the laser |
+| **Stick** left / right while grabbing | Past about half-way, takes over from the auto-spin and turns the object (it stays level) |
+| Let go of **R1** / **R2** | Drop it; the auto-spin resumes |
+| While grabbing, pull it all the way in and keep holding the **stick** down | When the object touches your controller, a ring around it fills (about 1.5 s); when the ring is full, the object closes. Let go of the stick and the ring drains. |
 
-When the cube first appears, it's 80 cm in front of where you're looking, slightly below eye level. It always faces the same way in the room, so you can walk around it.
+Outside desktop mode, the SteamVR Input bindings in `bindings_frame_controller.json` apply, on either controller: **L1 / R1** change color, **L2 / R2** grab, and the **sticks** push and pull.
+
+![Pulling the bunny into the controller: the ring fills and the bunny closes](docs/close.webp)
+
+When an object first appears, it's 80 cm in front of where you're looking, slightly below eye level. It always faces the same way in the room, so you can walk around it.
 
 ## Building
 
