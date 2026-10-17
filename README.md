@@ -2,6 +2,8 @@
 
 A tiny mixed-reality toy for the **Steam Frame** (SteamOS, ARM64). A cube, or any 3D model you load (STL, OBJ, PLY, glTF), floats in front of you over passthrough and SteamVR's desktop mode. Only the object is drawn; everything around it stays see-through, and your desktop stays usable.
 
+![Frame Float on the Steam Frame: the Stanford bunny, Spot the cow, an avocado and 3DBenchy floating around the SteamVR desktop over passthrough](docs/screenshot.jpg)
+
 It's also a working example of a SteamVR **overlay** that:
 
 - renders a correct **3D object** on a flat overlay, using head-tracked, per-eye off-axis ("window") projection,
