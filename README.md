@@ -28,6 +28,10 @@ Supported formats:
 
 Whatever its original size, the model is centered and scaled to the same size as the cube. Models that bring their own colors (textures, vertex or material colors) start in their original look; clicking cycles through color tints.
 
+**Bonus:** a phone circuit board (`.glb`, 48,868 triangles) opened, grabbed and turned, in its own colors:
+
+![A phone circuit board with a blue battery appears over the SteamVR desktop and is turned around with the controller](docs/pcb.webp)
+
 To get one free sample of each format, run:
 
 ```sh
